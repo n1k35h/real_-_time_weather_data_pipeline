@@ -36,8 +36,8 @@ pip install pandas requests pymongo python-dotenv
 
 2. Create a .env file in the same directory as the script. This file will store your credentials.
     ```sh
-    API_KEY="your_weatherbit_api_key"
-    password="your_mongodb_atlas_password"
+    API_KEY="API_KEY"
+    password="password"
     ```
 
 3. Replace the placeholder values with your actual Weatherbit API key and MongoDB Atlas password.
