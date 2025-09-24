@@ -4,20 +4,14 @@ from datetime import datetime, timezone
 from pymongo import MongoClient, UpdateOne
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv() # take environment variables from .env
 
 # url=f'https://api.weatherbit.io/v2.0/forecast/hourly?city=Lagos,NG&hours=24&key={API_KEY}'
 
 
-# username='s'
-# database='skylogix_prod'
-# password='firefighter'
 API_KEY = os.getenv("API_KEY")
 DB_PASS = os.getenv("password")
-# BASE_URL  = url
-# DB_USER   = username
-# DB_PASS = password
-# DB_NAME   = database
+
 
 # assert BASE_URL, "Missing 'url' in .env (Weatherbit endpoint)"
 # assert DB_USER and DB_PASS and DB_NAME, "Missing Mongo creds or database in .env"
@@ -27,6 +21,7 @@ MONGO_URI = f"mongodb+srv://skylogix1:{DB_PASS}@scoobycluster1.8ynjmbv.mongodb.n
 
 
 def now_utc_iso() -> str:
+    """Current time as ISO-8601 UTC (Z) string."""
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
@@ -75,6 +70,7 @@ def normalize(rec: dict) -> dict:
     else:
         dt_iso = now_utc_iso()
 
+    # extract some fields
     city = rec.get("city_name") or "UNKNOWN"
     wx   = rec.get("weather") or {}
     desc = wx.get("description") if isinstance(wx, dict) else None
@@ -95,7 +91,7 @@ def normalize(rec: dict) -> dict:
         # business time
         "dt": dt_iso,
 
-        # core metrics
+        # core metrics - all in metric units
         "temp_c": rec.get("temp"),
         "feels_like_c": rec.get("app_temp"),
         "rh": rec.get("rh"),
@@ -145,6 +141,7 @@ def ensure_indexes(collection):
 
 
 def upsert_batch(collection, docs: list[dict]) -> int:
+    """Upsert many docs in bulk, return count of upserted+modified."""
     if not docs:
         return 0
     ops = [UpdateOne({"_id": d["_id"]}, {"$set": d}, upsert=True) for d in docs]
@@ -160,12 +157,14 @@ def main():
     col = db["weather"]  # e.g., skylogix.weather
     ensure_indexes(col)
 
+    # list of cities to fetch
     cities = [
         {"city": "Lagos", "country": "NG"},
         {"city": "Accra", "country": "GH"},
         {"city": "Johannesburg", "country": "ZA"}
     ]
 
+    # iterate cities
     for city in cities:
         city_name = city['city']
         country_code = city['country']
@@ -174,7 +173,7 @@ def main():
 
         print(f"Fetching data for {city_name}, {country_code}...")
 
-    # fetch -> normalize -> upsert
+    # fetch -> normalize -> upsert batch for each city URL in cities list above (24 hourly records each) 
         try:
             records = fetch_hourly_24(city_url)
             docs = [normalize(r) for r in records]
